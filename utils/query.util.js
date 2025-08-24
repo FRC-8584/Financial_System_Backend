@@ -27,3 +27,41 @@ export function buildKeywordDateClause({ keyword, time, startDate, endDate }, se
 
   return where;
 }
+
+/**
+ * build db search where clause
+ * @param {Object} options
+ * @param {string[]} options.fields
+ * @param {string} [options.keyword] - keyword
+ * @param {string} [options.startDate] - start date (format: yyyy-MM-dd or yyyy-MM or yyyy, UTC+8)
+ * @param {string} [options.endDate] - end date (format: yyyy-MM-dd or yyyy-MM or yyyy, UTC+8)
+ * @param {Object} [options.extra] - the other extra search requirements (status, amount...)
+ * @returns {Object} Sequelize where clause
+ */
+export function buildReimbursementSearchClause({ fields, keyword, startDate, endDate }) {
+  const where = {};
+
+  // Keyword
+  if (keyword && fields.length > 0) {
+    where[Op.or] = fields.map(field => ({
+      [field]: { [Op.like]: `%${keyword}%` }
+    }));
+  }
+
+  // Time
+  if (startDate || endDate) {
+    const range = getDateRange(startDate, endDate);// get JSDate and convert UTC+8 to UTC+0
+    if (range.start || range.end) {
+      where.createdAt = {};
+      if (range.start) where.createdAt[Op.gte] = range.start;
+      if (range.end) where.createdAt[Op.lte] = range.end;
+    }
+  }
+
+  // Extra Requirements
+  if (extra && typeof extra === "object") {
+    Object.assign(where, extra);
+  }
+
+  return where;
+}
