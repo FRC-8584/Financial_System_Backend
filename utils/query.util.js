@@ -7,7 +7,7 @@ const VALID_REIMBURSEMENT_SOURCE_TYPES = ['budget', 'direct'];
 
 const withField = (key, value) => (value ? { [key]: value } : {});
 
-export function buildSearchClause_ByConditions({ fields, keyword, startDate, endDate }, ...extra) {
+export function buildSearchClause_ByConditions({ fields, keyword, startDate, endDate }) {
   const searchClause = {};
 
   // Keyword
@@ -25,11 +25,6 @@ export function buildSearchClause_ByConditions({ fields, keyword, startDate, end
       if (range.start) searchClause.createdAt[Op.gte] = range.start;
       if (range.end) searchClause.createdAt[Op.lte] = range.end;
     }
-  }
-
-  // Extra Requirements
-  if (extra && extra.length > 0) {
-    extra.forEach(i => Object.assign(searchClause, extra[i]));
   }
 
   return searchClause;
@@ -50,22 +45,24 @@ export function buildSearchClause_ForBudget({ id, status, keyword, startDate, en
     throw new Error("Invalid status filter");
   }
 
-  // Search by Ids
-  if (id) {
-    return {
+  let clause = {};
+  
+  if (id) { // Search by Ids
+    clause = {
       ...buildSearchClause_ById(id),
       ...withField("userId", myUserId),
+    };
+  }
+  else { // Search by some conditions
+    clause = {
+      ...buildSearchClause_ByConditions({ fields: ["title", "description"], keyword, startDate, endDate }),
+      ...withField("status", status),
+      ...withField("userId", myUserId)
     }
   }
 
-  // Search by some conditions
-  return buildSearchClause_ByConditions(
-    { fields: ["title", "description"], keyword, startDate, endDate },
-    withField("status", status),
-    withField("userId", myUserId),
-  );
+  return clause;
 }
-
 
 export function buildSearchClause_ForReimbursement({ id, budgetId, status, sourceType, keyword, startDate, endDate }, myUserId) {
   // Validate
@@ -76,37 +73,43 @@ export function buildSearchClause_ForReimbursement({ id, budgetId, status, sourc
     throw new Error("Invalid sourceType filter");
   }
 
-  // Search by Ids or BudgetId
-  if (id || budgetId) {
-    return {
+  let clause = {};
+  
+  if (id || budgetId) { // Search by Ids or BudgetId
+    clause = {
       ...buildSearchClause_ById(id),
       ...withField("budgetId", budgetId),
       ...withField("userId", myUserId),
     };
   }
+  else { // Search by some conditions
+    clause = {
+      ...buildSearchClause_ByConditions({ fields: ["title", "description"], keyword, startDate, endDate }),
+      ...withField("status", status),
+      ...withField("sourceType", sourceType),
+      ...withField("userId", myUserId)
+    }
+  }
 
-  // Search by some conditions
-  return buildSearchClause_ByConditions(
-    { fields: ["title", "description"], keyword, startDate, endDate },
-    withField("status", status),
-    withField("sourceType", sourceType),
-    withField("userId", myUserId),
-  );
+  return clause;
 }
 
 export function buildSearchClause_ForDisbursement({ id, reimbursementId, keyword, startDate, endDate }, myUserId) {
-  // Search by Ids or reimbursementId
-  if (id || reimbursementId) {
-    return {
+  let clause = {};
+
+  if (id || reimbursementId) { // Search by Ids or reimbursementId
+    clause = {
       ...buildSearchClause_ById(id),
       ...withField("reimbursementId", reimbursementId),
       ...withField("userId", myUserId),
     };
   }
+  else { // Search by some conditions
+    clause = {
+      ...buildSearchClause_ByConditions({ fields: ["title", "description"], keyword, startDate, endDate }),
+      ...withField("userId", myUserId)
+    }
+  }
 
-  // Search by some conditions
-  return buildSearchClause_ByConditions(
-    { fields: ["title", "description"], keyword, startDate, endDate },
-    withField("userId", myUserId),
-  );
+  return clause;
 }
