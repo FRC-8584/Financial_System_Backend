@@ -2,7 +2,7 @@ import db from '../models/index.js';
 import ExcelJS from 'exceljs';
 import { DateTime } from 'luxon';
 import { validateTitle, validateAmount } from '../utils/validators.js';
-import { buildKeywordDateClause } from '../utils/query.util.js';
+import { buildSearchClause_ForReimbursement } from '../utils/query.util.js';
 import { formatAsTaiwanTime } from '../utils/time.util.js';
 import { deleteFileIfExists } from '../utils/file.util.js';
 
@@ -81,7 +81,7 @@ const createReimbursement = async (req, res) => {
 const getAllReimbursements = async (req, res) => {
   try {
     // Whereclause construction
-    const whereClause = buildWhereClause(req.query, false);
+    const whereClause = buildSearchClause_ForReimbursement(req.query, null);
 
     // Get data
     const reimbursements = await db.Reimbursement.findAll({
@@ -128,7 +128,7 @@ const getAllReimbursements = async (req, res) => {
 const getMyReimbursements = async (req, res) => {
   try {
     // Whereclause construction
-    const whereClause = buildWhereClause(req.query, true, req.user.id);
+    const whereClause = buildSearchClause_ForReimbursement(req.query, req.user.id);
 
     // Get data
     const reimbursements = await db.Reimbursement.findAll({
@@ -354,16 +354,36 @@ const deleteReimbursement = async (req, res) => {
 };
 
 const exportReimbursementsRequest = async (req, res) => {
-  const { keyword, time, startDate, endDate } = req.query;
-
-  const whereClause = buildKeywordDateClause(
-      { keyword, time, startDate, endDate },
-      ['title', 'description']
-    );
-  whereClause.status = 'approved';
-  whereClause.sourceType = 'direct';
-
+  const { id, keyword, startDate, endDate } = req.query;
   try {
+    let whereClause = {};
+
+    if (id) {// Search by Ids
+      const idList = Array.isArray(id) ? id : [id];
+      if (idList.length > 64) {
+        return res.status(400).json({ message: "Maximum 64 reimbursements can be selected by id" });
+      }
+      whereClause = {
+        id: idList,
+        status: 'approved',
+        sourceType: 'direct',
+        budgetId: null
+      };
+    }
+    else {// Search by some conditions
+      whereClause = buildSearchClause_ForReimbursement(
+        {
+          keyword,
+          startDate,
+          endDate,
+          status: 'approved',
+          sourceType: 'direct',
+          budgetId: null,
+        },
+        null
+      );
+    }
+
     const reimbursements = await db.Reimbursement.findAll({
       where: whereClause,
       include: { model: db.User, attributes: ['name', 'email'] },
@@ -524,35 +544,4 @@ export default {
   exportReimbursementsRequest,
   markReimbursementSettled,
   markReimbursementsSettled
-};
-
-// helper
-
-function buildWhereClause(query, isMy, userId) {
-  const { id, status, keyword, time, startDate, endDate, sourceType } = query;
-
-  let whereClause = {};
-  if (id) {
-    const ids = Array.isArray(id) ? id : [id];
-    if (ids.length > 64) {
-      throw new Error('Too many IDs in request (max 64)');
-    }
-    whereClause.id = ids;
-    if (isMy) whereClause.userId = userId;
-  } else {
-    if (status && !validStatus.includes(status)) {
-      throw new Error('Invalid status filter');
-    }
-    if (sourceType && !validSourceType.includes(sourceType)) {
-      throw new Error('Invalid sourceType filter');
-    }
-    whereClause = buildKeywordDateClause(
-      { keyword, time, startDate, endDate },
-      ['title', 'description']
-    );
-    if (status) whereClause.status = status;
-    if (sourceType) whereClause.sourceType = sourceType;
-    if (isMy) whereClause.userId = userId;
-  }
-  return whereClause;
 };

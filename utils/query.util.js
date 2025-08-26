@@ -1,49 +1,18 @@
 import { Op } from 'sequelize';
 import { getDateRange, getTimeRange } from './time.util.js';
 
-export function buildKeywordDateClause({ keyword, time, startDate, endDate }, searchableFields = []) {
-  const where = {};
+const VALID_BUDGET_STATUS = ['pending', 'approved', 'rejected', 'settled'];
+const VALID_REIMBURSEMENT_STATUS = ['pending', 'approved', 'rejected', 'settled'];
+const VALID_REIMBURSEMENT_SOURCE_TYPES = ['budget', 'direct'];
 
-  // time
-  if (time) {
-    const range = getTimeRange(time);
-    if (range) where.createdAt = { [Op.between]: [range.start, range.end] };
-  }
-  else if (startDate || endDate) {
-    const range = getDateRange(startDate, endDate);
-    if (range.start || range.end) {
-      where.createdAt = {};
-      if (range.start) where.createdAt[Op.gte] = range.start;
-      if (range.end) where.createdAt[Op.lte] = range.end;
-    }
-  }
+const withField = (key, value) => (value ? { [key]: value } : {});
 
-  // keyword
-  if (keyword && searchableFields.length > 0) {
-    where[Op.or] = searchableFields.map(field => ({
-      [field]: { [Op.like]: `%${keyword}%` }
-    }));
-  }
-
-  return where;
-}
-
-/**
- * build db search where clause
- * @param {Object} options
- * @param {string[]} options.fields
- * @param {string} [options.keyword] - keyword
- * @param {string} [options.startDate] - start date (format: yyyy-MM-dd or yyyy-MM or yyyy, UTC+8)
- * @param {string} [options.endDate] - end date (format: yyyy-MM-dd or yyyy-MM or yyyy, UTC+8)
- * @param {Object} [options.extra] - the other extra search requirements (status, amount...)
- * @returns {Object} Sequelize where clause
- */
-export function buildReimbursementSearchClause({ fields, keyword, startDate, endDate }) {
-  const where = {};
+export function buildSearchClause_ByConditions({ fields, keyword, startDate, endDate }, ...extra) {
+  const searchClause = {};
 
   // Keyword
   if (keyword && fields.length > 0) {
-    where[Op.or] = fields.map(field => ({
+    searchClause[Op.or] = fields.map(field => ({
       [field]: { [Op.like]: `%${keyword}%` }
     }));
   }
@@ -52,16 +21,92 @@ export function buildReimbursementSearchClause({ fields, keyword, startDate, end
   if (startDate || endDate) {
     const range = getDateRange(startDate, endDate);// get JSDate and convert UTC+8 to UTC+0
     if (range.start || range.end) {
-      where.createdAt = {};
-      if (range.start) where.createdAt[Op.gte] = range.start;
-      if (range.end) where.createdAt[Op.lte] = range.end;
+      searchClause.createdAt = {};
+      if (range.start) searchClause.createdAt[Op.gte] = range.start;
+      if (range.end) searchClause.createdAt[Op.lte] = range.end;
     }
   }
 
   // Extra Requirements
-  if (extra && typeof extra === "object") {
-    Object.assign(where, extra);
+  if (extra && extra.length > 0) {
+    extra.forEach(i => Object.assign(searchClause, extra[i]));
   }
 
-  return where;
+  return searchClause;
+}
+
+export function buildSearchClause_ById(id, limit = 64) {
+  if (!id) return {};
+  const ids = Array.isArray(id) ? id : [id];
+  if (ids.length > limit) {
+    throw new Error(`Too many IDs in request (max ${limit})`);
+  }
+  return { id: ids };
+}
+
+export function buildSearchClause_ForBudget({ id, status, keyword, startDate, endDate }, myUserId) {
+  // Validate
+  if (status && !VALID_BUDGET_STATUS.includes(status)) {
+    throw new Error("Invalid status filter");
+  }
+
+  // Search by Ids
+  if (id) {
+    return {
+      ...buildSearchClause_ById(id),
+      ...withField("userId", myUserId),
+    }
+  }
+
+  // Search by some conditions
+  return buildSearchClause_ByConditions(
+    { fields: ["title", "description"], keyword, startDate, endDate },
+    withField("status", status),
+    withField("userId", myUserId),
+  );
+}
+
+
+export function buildSearchClause_ForReimbursement({ id, budgetId, status, sourceType, keyword, startDate, endDate }, myUserId) {
+  // Validate
+  if (status && !VALID_REIMBURSEMENT_STATUS.includes(status)) {
+    throw new Error("Invalid status filter");
+  }
+  if (sourceType && !VALID_REIMBURSEMENT_SOURCE_TYPES.includes(sourceType)) {
+    throw new Error("Invalid sourceType filter");
+  }
+
+  // Search by Ids or BudgetId
+  if (id || budgetId) {
+    return {
+      ...buildSearchClause_ById(id),
+      ...withField("budgetId", budgetId),
+      ...withField("userId", myUserId),
+    };
+  }
+
+  // Search by some conditions
+  return buildSearchClause_ByConditions(
+    { fields: ["title", "description"], keyword, startDate, endDate },
+    withField("status", status),
+    withField("sourceType", sourceType),
+    withField("userId", myUserId),
+  );
+}
+
+export function buildSearchClause_ForDisbursement({ id, reimbursementId, keyword, startDate, endDate }, myUserId) {
+  // Search by Ids or reimbursementId
+  if (id || reimbursementId) {
+    return {
+      ...buildSearchClause_ById(id),
+      ...withField("reimbursementId", reimbursementId),
+      ...withField("userId", myUserId),
+    };
+  }
+
+  // Search by some conditions
+  return buildSearchClause_ByConditions(
+    { fields: ["title", "description"], keyword, startDate, endDate },
+    withField("userId", myUserId),
+  );
 }

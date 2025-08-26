@@ -1,6 +1,6 @@
 import db from '../models/index.js';
 import { validateTitle, validateAmount } from '../utils/validators.js';
-import { buildKeywordDateClause } from '../utils/query.util.js';
+import { buildSearchClause_ForBudget } from '../utils/query.util.js';
 import { formatAsTaiwanTime } from '../utils/time.util.js';
 
 const validVarifyStatus = ['pending', 'approved', 'rejected'];
@@ -51,7 +51,7 @@ const createBudget = async (req, res) => {
 const getAllBudgets = async (req, res) => {
   try {
     // Whereclause construction
-    const whereClause = buildWhereClause(req.query, false);
+    const whereClause = buildSearchClause_ForBudget(req.query, null);
 
     // Get data
     const budgets = await db.Budget.findAll({
@@ -93,7 +93,7 @@ const getAllBudgets = async (req, res) => {
 const getMyBudgets = async (req, res) => {
   try {
     // Whereclause construction
-    const whereClause = buildWhereClause(req.query, true, req.user.id);
+    const whereClause = buildSearchClause_ForBudget(req.query, req.user.id);
 
     // Get data
     const budgets = await db.Budget.findAll({
@@ -297,31 +297,4 @@ export default {
   updateBudgetStatus,
   deleteBudget,
   markBudgetSettled
-};
-
-// helper
-
-function buildWhereClause(query, isMy, userId) {
-  const { id, status, keyword, time, startDate, endDate } = query;
-
-  let whereClause = {};
-  if (id) {
-    const ids = Array.isArray(id) ? id : [id];
-    if (ids.length > 64) {
-      throw new Error('Too many IDs in request (max 64)');
-    }
-    whereClause.id = ids;
-    if (isMy) whereClause.userId = userId;
-  } else {
-    if (status && !validStatus.includes(status)) {
-      throw new Error('Invalid status filter');
-    }
-    whereClause = buildKeywordDateClause(
-      { keyword, time, startDate, endDate },
-      ['title', 'description']
-    );
-    if (status) whereClause.status = status;
-    if (isMy) whereClause.userId = userId;
-  }
-  return whereClause;
 };
