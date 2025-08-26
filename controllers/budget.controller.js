@@ -12,12 +12,10 @@ const createBudget = async (req, res) => {
   // Basic validation
   const titleError = validateTitle(title);
   if (titleError) {
-    await deleteFileIfExists(receiptPath);
     return res.status(400).json({ message: titleError });
   }
   const amountError = validateAmount(amount);
   if (amountError) {
-    await deleteFileIfExists(receiptPath);
     return res.status(400).json({ message: amountError });
   }
 
