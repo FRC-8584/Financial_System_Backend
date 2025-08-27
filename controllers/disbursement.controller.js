@@ -1,5 +1,6 @@
 import db from '../models/index.js';
 import { buildSearchClause_ForDisbursement } from '../utils/query.util.js';
+import { formatAsTaiwanTime } from '../utils/time.util.js';
 
 const getAllDisbursements = async (req, res) => {
   try {
@@ -34,9 +35,9 @@ const getAllDisbursements = async (req, res) => {
 
       // User info
       user: {
-        id: r.User.id,
-        name: r.User.name,
-        email: r.User.email
+        id: d.User.id,
+        name: d.User.name,
+        email: d.User.email
       }
     }));
 

@@ -460,7 +460,7 @@ const markReimbursementSettled = async (req, res) => {
       amount: reimbursement.amount,
       description: reimbursement.description,
       userId: reimbursement.userId,
-      settledAt: DateTime.now().toISODate(),
+      settledAt: DateTime.now().toISO(),
       reimbursementId: id
     });
 
@@ -521,7 +521,7 @@ const markReimbursementsSettled = async (req, res) => {
         amount: r.amount,
         description: r.description,
         userId: r.userId,
-        settledAt: DateTime.now().toISODate(),
+        settledAt: DateTime.now().toISO(),
         reimbursementId: r.id
       }));
 
