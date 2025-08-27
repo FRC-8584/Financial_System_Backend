@@ -5,7 +5,7 @@ import allowRoles from '../middleware/role.middleware.js';
 const router = express.Router();
 
 router.post('/', controller.createBudget);
-router.get('/', allowRoles('manager, admin'), controller.getAllBudgets);
+router.get('/', allowRoles('manager', 'admin'), controller.getAllBudgets);
 router.get('/me', controller.getMyBudgets);
 
 router.patch('/:id/status', allowRoles('manager', 'admin'), controller.updateBudgetStatus);

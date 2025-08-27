@@ -1,15 +1,11 @@
 import db from '../models/index.js';
+import { buildSearchClause_ForDisbursement } from '../utils/query.util.js';
 
 const getAllDisbursements = async (req, res) => {
-  const { keyword, time, startDate, endDate } = req.query;
-
-  // Whereclause construction
-  const whereClause = buildKeywordDateClause(
-    { keyword, time, startDate, endDate },
-    ['title', 'description']
-  );
-  
   try {
+  // Whereclause construction
+  const whereClause = buildSearchClause_ForDisbursement(req.query, null);
+  
     // Get data
     const disbursements = await db.Disbursement.findAll({
       where: whereClause,
