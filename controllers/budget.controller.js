@@ -138,17 +138,17 @@ const updateBudget = async (req, res) => {
     }
 
     // Check permission
-    if(req.user.role === 'manager' || req.user.role === 'admin') {// manager or admin
-      if (budget.status === 'settled') {
-        return res.status(400).json({ message: 'Cannot edit settled budget' });
-      }
-    }
-    else if(req.user.id === budget.userId) {// user him/herself
+    if(req.user.id === budget.userId) {// user him/herself
       if (budget.status === 'settled') {
         return res.status(400).json({ message: 'Cannot edit settled budget' });
       }
       if (budget.status === 'approved') {
         return res.status(400).json({ message: 'Cannot edit approved budget' });
+      }
+    }
+    else if(req.user.role === 'manager' || req.user.role === 'admin') {// manager or admin
+      if (budget.status === 'settled') {
+        return res.status(400).json({ message: 'Cannot edit settled budget' });
       }
     }
     else {// the others
@@ -241,14 +241,14 @@ const deleteBudget = async (req, res) => {
     }
 
     // Check permission
-    if(req.user.role === 'manager' || req.user.role === 'admin') {// manager or admin
-      if(budget.status !== 'settled') {
-        return res.status(405).json({ message: 'Cannot delete unsettled budget' });
+    if(req.user.id === budget.userId) {// user him/herself
+      if(budget.status === 'approved') {// Can deleted status type: pending, rejected, settled
+        return res.status(405).json({ message: 'Cannot delete approved budget' });
       }
     }
-    else if(req.user.id === budget.userId) {// user him/herself
-      if(budget.status === 'approved') {
-        return res.status(405).json({ message: 'Cannot delete approved budget' });
+    else if(req.user.role === 'manager' || req.user.role === 'admin') {// manager or admin
+      if(budget.status !== 'settled') {// Can deleted status type: settled
+        return res.status(405).json({ message: 'Cannot delete unsettled budget' });
       }
     }
     else {// the others

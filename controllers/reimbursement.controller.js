@@ -182,13 +182,7 @@ const updateReimbursement = async (req, res) => {
     }
 
     // Check permission
-    if(req.user.role === 'manager' || req.user.role === 'admin') {// manager or admin
-      if(reimbursement.status === 'settled') {
-        await deleteFileIfExists(file.path);
-        return res.status(409).json({ message: 'Cannot edit settled reimbursement' });
-      }
-    }
-    else if(req.user.id === reimbursement.userId) {// user him/herself
+    if(req.user.id === reimbursement.userId) {// user him/herself
       if(reimbursement.status === 'settled') {
         await deleteFileIfExists(file.path);
         return res.status(409).json({ message: 'Cannot edit settled reimbursement' });
@@ -196,6 +190,12 @@ const updateReimbursement = async (req, res) => {
       if(reimbursement.status === 'approved') {
         await deleteFileIfExists(file.path);
         return res.status(409).json({ message: 'Cannot edit approved reimbursement' });
+      }
+    }
+    else if(req.user.role === 'manager' || req.user.role === 'admin') {// manager or admin
+      if(reimbursement.status === 'settled') {
+        await deleteFileIfExists(file.path);
+        return res.status(409).json({ message: 'Cannot edit settled reimbursement' });
       }
     }
     else {// the others
@@ -331,14 +331,14 @@ const deleteReimbursement = async (req, res) => {
     }
 
     // Check permission
-    if(req.user.role === 'manager' || req.user.role === 'admin') {// manager or admin
-      if(reimbursement.status !== 'settled') {
-        return res.status(405).json({ message: 'Cannot delete unsettled reimbursement' });
+    if(req.user.id === reimbursement.userId) {// user him/herself
+      if(reimbursement.status === 'approved') {// Can deleted status type: pending, rejected, settled
+        return res.status(405).json({ message: 'Cannot delete approved reimbursement' });
       }
     }
-    else if(req.user.id === reimbursement.userId) {// user him/herself
-      if(reimbursement.status === 'approved') {
-        return res.status(405).json({ message: 'Cannot delete approved reimbursement' });
+    else if(req.user.role === 'manager' || req.user.role === 'admin') {// manager or admin
+      if(reimbursement.status !== 'settled') {// Can deleted status type: settled
+        return res.status(405).json({ message: 'Cannot delete unsettled reimbursement' });
       }
     }
     else {// the others
@@ -391,7 +391,7 @@ const exportReimbursementsRequest = async (req, res) => {
     });
 
     if(reimbursements.length === 0) {
-      return res.status(200).json({ message: 'Not any approved reimbursements to export excel' });
+      return res.status(204).end();
     }
 
     const workbook = new ExcelJS.Workbook();
@@ -425,13 +425,10 @@ const exportReimbursementsRequest = async (req, res) => {
       amount: total
     });
 
-    const text = time ? `_${time}` : '';
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename=reimbursement_request${text}.xlsx`);
+    res.setHeader('Content-Disposition', `attachment; filename=reimbursement_request.xlsx`);
 
-    res.status(200);
     await workbook.xlsx.write(res);
-    res.end();
   } catch (err) {
     res.status(500).json({ message: 'Failed to export Excel', error: err.message });
   }
