@@ -1,4 +1,5 @@
 import db from '../models/index.js';
+import ExcelJS from 'exceljs';
 import { buildSearchClause_ForDisbursement } from '../utils/query.util.js';
 import { formatAsTaiwanTime } from '../utils/time.util.js';
 
@@ -48,21 +49,20 @@ const getAllDisbursements = async (req, res) => {
 }
 
 const exportDisbursement = async (req, res) => {
-  const { keyword, time, startDate, endDate } = req.query;
-
-  // Whereclause construction
-  const whereClause = buildKeywordDateClause(
-      { keyword, time, startDate, endDate },
-      ['title', 'description']
-    );
-
   try {
+    // Whereclause construction
+    const whereClause = buildSearchClause_ForDisbursement(req.query, null);
+
     // Get data
     const disbursements = await db.Disbursement.findAll({
       where: whereClause,
       include: { model: db.User, attributes: ['name', 'email'] },
       order: [['createdAt', 'DESC']]
     });
+
+    if(disbursements.length === 0) {
+      return res.status(204).end();
+    }
 
     // Build Excel worksheet
     const workbook = new ExcelJS.Workbook();
@@ -96,12 +96,10 @@ const exportDisbursement = async (req, res) => {
       amount: total
     });
 
-    const text = time ? `_${time}` : '';
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename=報帳紀錄${text}.xlsx`);
+    res.setHeader('Content-Disposition', `attachment; filename=request_records.xlsx`);
 
     // Export Data
-    res.status(200);
     await workbook.xlsx.write(res);
     res.end();
   } catch (err) {
