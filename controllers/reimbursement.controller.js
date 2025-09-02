@@ -1,10 +1,13 @@
 import db from '../models/index.js';
 import ExcelJS from 'exceljs';
+import path from 'path';
 import { DateTime } from 'luxon';
 import { validateTitle, validateAmount } from '../utils/validators.js';
 import { buildSearchClause_ForReimbursement } from '../utils/query.util.js';
 import { formatAsTaiwanTime } from '../utils/time.util.js';
 import { deleteFileIfExists } from '../utils/file.util.js';
+
+const BASE_URL = process.env.SERVER_BASE_URL || 'http://localhost:3000';
 
 const validVerifyStatus = ['pending', 'approved', 'rejected'];
 const validStatus = ['pending', 'approved', 'rejected', 'settled'];
@@ -104,16 +107,18 @@ const getAllReimbursements = async (req, res) => {
       title: r.title,
       amount: r.amount,
       description: r.description,
-      status: r.status,
-      sourceType: r.sourceType,
       createdAt: formatAsTaiwanTime(r.createdAt),
       updatedAt: formatAsTaiwanTime(r.updatedAt),
+      receiptUrl: r.receiptPath 
+        ? `${BASE_URL}/uploads/${path.basename(r.receiptPath)}` : null,
+      sourceType: r.sourceType,
       budgetId: r.budgetId || null,
       user: {
         id: r.User.id,
         name: r.User.name,
         email: r.User.email
-      }
+      },
+      status: r.status,
     }));
 
     res.status(200).json(result);
@@ -147,11 +152,13 @@ const getMyReimbursements = async (req, res) => {
       title: r.title,
       amount: r.amount,
       description: r.description,
-      status: r.status,
       createdAt: formatAsTaiwanTime(r.createdAt),
       updatedAt: formatAsTaiwanTime(r.updatedAt),
+      receiptUrl: r.receiptPath 
+        ? `${BASE_URL}/uploads/${path.basename(r.receiptPath)}` : null,
       sourceType: r.sourceType,
       budgetId: r.budgetId || null,
+      status: r.status,
     }));
 
     res.status(200).json(result);
