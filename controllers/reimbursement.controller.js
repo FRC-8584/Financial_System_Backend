@@ -246,22 +246,27 @@ const updateReimbursement = async (req, res) => {
     await reimbursement.update(update);
 
     // Transform data
-    const result = {
+    let result = {
       id: reimbursement.id,
       title: reimbursement.title,
       amount: reimbursement.amount,
       description: reimbursement.description,
-      status: reimbursement.status,
-      sourceType: reimbursement.sourceType,
       createdAt: formatAsTaiwanTime(reimbursement.createdAt),
       updatedAt: formatAsTaiwanTime(reimbursement.updatedAt),
+      receiptUrl: reimbursement.receiptPath 
+        ? `${BASE_URL}/uploads/${path.basename(reimbursement.receiptPath)}` : null,
+      sourceType: reimbursement.sourceType,
       budgetId: reimbursement.budgetId || null,
-      user: {
+      status: reimbursement.status,
+    };
+
+    if(!(req.user.id === reimbursement.userId)) {
+      result.user = {
         id: reimbursement.User.id,
         name: reimbursement.User.name,
         email: reimbursement.User.email
       }
-    };
+    }
 
     res.status(200).json({ message: 'Reimbursement updated', result });
   }catch (err) {
