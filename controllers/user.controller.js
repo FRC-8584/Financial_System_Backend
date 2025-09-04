@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt';
 import db from '../models/index.js';
+import { formatAsTaiwanTime } from '../utils/time.util.js';
 
 const register = async (req, res) => {
   const { name, email, password, role } = req.body;
@@ -75,7 +76,16 @@ const getMyProfile = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    res.status(200).json(user);
+
+    const result = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      createdAt: formatAsTaiwanTime(user.createdAt),
+      updatedAt: formatAsTaiwanTime(user.updatedAt),
+    };
+
+    res.status(200).json(result);
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch user', error: err.message });
   }
